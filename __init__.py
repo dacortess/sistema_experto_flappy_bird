@@ -1,0 +1,17 @@
+from config.window import Window
+from logic.game import Game
+from logic.objects import Pipe
+from logic.objects import Ground
+from logic.objects import Player
+from logic.objects import Score
+from config.media import window_img
+from config.media import objects_img
+from config.media import messages_img
+from config.media import player_img
+from config.media import sfx
+from config.media import font
+from config.variables import window_dimensions
+from config.variables import scroll_speed
+from config.variables import ground_position
+from config.variables import bird_position
+
