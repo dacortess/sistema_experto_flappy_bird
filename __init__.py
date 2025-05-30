@@ -14,4 +14,4 @@ from config.variables import window_dimensions
 from config.variables import scroll_speed
 from config.variables import ground_position
 from config.variables import bird_position
-
+from logic.train import eval_genomes

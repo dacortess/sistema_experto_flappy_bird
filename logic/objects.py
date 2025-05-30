@@ -150,7 +150,7 @@ class Pipe(pygame.sprite.Sprite):
         self.pipe_type: str = pipe_type
         self.score: int = 0
 
-    def update(self, score) -> None:
+    def update(self, score, ge=None) -> None:
         """
         Update Pipe object
 
@@ -175,6 +175,8 @@ class Pipe(pygame.sprite.Sprite):
                 self.passed = True
                 sfx['point'].play()
                 score.update()
+                for g in ge:
+                    g.fitness += 5
     
     def get_score(self):
         return self.score
