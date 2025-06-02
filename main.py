@@ -27,15 +27,24 @@ def run(config_file):
     #p.add_reporter(neat.Checkpointer(5))
 
     # Run for up to 50 generations.
-    train = Train()
-    winner = p.run(train.eval_genomes, 50)
+    def eval_genomes(genomes, config):
+        """
+        Evaluates the genomes in the population.
+        :param genomes: list of genomes to evaluate
+        :param config: configuration for the NEAT algorithm
+        :return: None
+        """
+        train = Train()
+        train.eval_genomes(genomes, config)
+
+    winner = p.run(eval_genomes, 50)
 
     # show final stats
     print('\nBest genome:\n{!s}'.format(winner))
 
 if __name__ == "__main__":
     local_dir = os.path.dirname(__file__)
-    config_path = os.path.join(local_dir, 'config-feedforward.txt')
+    config_path = os.path.join(local_dir, 'config_feedforward.txt')
     run(config_path)
     #main()
     

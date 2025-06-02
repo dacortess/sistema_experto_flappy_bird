@@ -204,8 +204,9 @@ class Pipe(pygame.sprite.Sprite):
                 self.passed = True
                 sfx['point'].play()
                 score.update()
-                for g in ge:
-                    g.fitness += 5
+                if ge is not None:
+                    for g in ge:
+                        g.fitness += 5
     
     def get_score(self):
         return self.score

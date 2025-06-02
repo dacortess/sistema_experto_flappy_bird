@@ -54,7 +54,7 @@ class Train():
         self.clock = pygame.time.Clock()
         self.window: Window = Window()
         self.score: Score = Score()
-        self.players = []
+        self.players = pygame.sprite.Group()
         self.ground = pygame.sprite.Group()
         self.pipes = pygame.sprite.Group()
         self.game_status: True = True
@@ -129,7 +129,6 @@ class Train():
             
             pygame.display.update()
 
-
     def train_loop(self, genomes, config) -> None:
         """
         Game loop that controls all window draws and blits
@@ -143,108 +142,111 @@ class Train():
         # Initialize Objects
         nets=[]
         ge=[]
+        players_list = []  # MODIFICADO: Lista paralela a self.players
+        pipes_list = []    # MODIFICADO: Lista paralela a self.pipes
 
         for _, genome in genomes:
             genome.fitness = 0  # start with fitness level of 0
             net = neat.nn.FeedForwardNetwork.create(genome, config)
             nets.append(net)
-            player_class = pygame.sprite.GroupSingle()
-            player_class.append(Player())
-            self.player.append(player_class)
+            player = Player()
+            players_list.append(player)
+            self.players.add(player)
             ge.append(genome)
-        
+
         self.ground.add(Ground(pos_ground[0], pos_ground[1]))
+        # Initialize pipe_timer to a random value to delay the first pipe
         pipe_timer: int = 0
 
         run: bool = True
+        pipe_ind = 0
 
         while run:
 
             # Check Quit
-
             self.check_quit()
 
             # Set Background
-
             self.window.blit(self.window.background, (0,0))
 
             # Draw Objects
-            for player in self.players:
-                self.player.draw(self.window.window)
+            self.players.draw(self.window.window)
             self.ground.draw(self.window.window)
             self.pipes.draw(self.window.window)
 
             # Spawn Ground
-
             if len(self.ground) <= 2:
                 self.ground.add(Ground(win_dim[0], pos_ground[1]))
+            
+            # Spawn Pipes
+            if pipe_timer <= 0 and len(self.players) > 0:
+                x_top, x_bottom = 550, 550
+                y_top = random.randint(-600,-480)
+                y_bottom = y_top + random.randint(90, 130) + objects_img['bottom_pipe'].get_height()
+                pipe_top = Pipe(x_top, y_top, objects_img['top_pipe'], 'top')       # MODIFICADO
+                pipe_bottom = Pipe(x_bottom, y_bottom, objects_img['bottom_pipe'], 'bottom')  # MODIFICADO
+                self.pipes.add(pipe_top)  # MODIFICADO
+                self.pipes.add(pipe_bottom)
+                pipes_list.extend([pipe_top, pipe_bottom])  # MODIFICADO
+                pipe_timer = random.randint(180, 250)
+            pipe_timer: int = pipe_timer - 1
 
             # Show Score
-
             score_tect = font.render(f'Score: {self.score.score}', True, pygame.Color(255, 255, 255))
             self.window.blit(score_tect, (20, 20))
 
-
-            pipe_ind = 0
+            # Update Objects
             if len(self.players) > 0:
-                if len(self.pipes) > 1 and self.players[0].rect.x > self.pipes[0].rect.x + self.pipes[0].PIPE_TOP.get_width():  # determine whether to use the first or second
-                    pipe_ind = 1
+                self.pipes.update(self.score, ge=ge)
+                self.ground.update()
+            
+            # NEAT CONFIG
+            if len(players_list) > 0:
+                change_pipe = False
+                for _, player in enumerate(players_list):
+                    if len(pipes_list) > 0 and player.rect.topleft[0] > pipes_list[pipe_ind].rect.topleft[0] + pipes_list[pipe_ind].PIPE_TOP.get_width():
+                        change_pipe = True
+                if change_pipe: pipe_ind += 2
             else:
                 run = False
                 break
-
-            for x, player in enumerate(self.players):  # give each bird a fitness of 0.1 for each frame it stays alive
-                ge[x].fitness += 0.1
+            
+            for x, player in enumerate(players_list):
+                ge[x].fitness = 0.016
                 player.move()
 
-                # send bird location, top pipe location and bottom pipe location and determine from network whether to jump or not
-                output = nets[self.players.index(player)].activate((player.rect.y, abs(player.rect.y - self.pipes[pipe_ind].rect.height), abs(player.rect.y - self.pipes[pipe_ind].rect.bottom)))
-
-                if output[0] > 0.5:  # we use a tanh activation function so result will be between -1 and 1. if over 0.5 jump
-                    player.jump()   
-                    
-             # Update Objects
-            for player in self.players:
-                if self.player.sprite.alive:
-                    self.pipes.update(self.score, ge=ge)
-                    self.ground.update()
-
+                output = nets[x].activate((
+                    player.rect.y,
+                    abs(player.rect.y - pipes_list[pipe_ind].rect.bottomleft[1]),
+                    abs(player.rect.y - pipes_list[pipe_ind + 1].rect.topleft[1])
+                ))
+                
+                if output[0] > 0.5:
+                    player.jump()
+                
             # Collisions
-            for i, player in enumerate(self.players):
-                collision_pipes = pygame.sprite.spritecollide(self.player.sprites()[0], self.pipes, False)
-                collision_ground = pygame.sprite.spritecollide(self.player.sprites()[0], self.ground, False)
+            for i, player in enumerate(players_list):
+                collision_pipes = pygame.sprite.spritecollide(player, self.pipes, False)
+                collision_ground = pygame.sprite.spritecollide(player, self.ground, False)
                 if collision_pipes or collision_ground or player.rect.y < 0:
                     if collision_pipes:
                         if self.hit_sound:
                             sfx['hit'].play()
                             self.hit_sound = False
-                    self.player.sprite.alive = False
-                    if collision_ground:
+                        ge[i].fitness -= 3
+                    #player.sprite.alive = False
+                    if collision_ground or player.rect.y < 0:
                         if self.die_sound:
                             sfx['die'].play()
                             self.die_sound = False
-                    if player.rect.y < 0:
-                        if self.die_sound:
-                            sfx['die'].play()
-                            self.die_sound = False
-                    ge[i].fitness -= 1
-                    self.players.pop(i)
+                        ge[i].fitness -= 5
+
+                    self.players.remove(player)
+                    players_list.pop(i)
                     nets.pop(i)
                     ge.pop(i)
-                                                       
-
-            # Spawn Pipes
-
-            if pipe_timer <= 0 and self.player.sprite.alive:
-                x_top, x_bottom = 550, 550
-                y_top = random.randint(-600,-480)
-                y_bottom = y_top + random.randint(90, 130) + objects_img['bottom_pipe'].get_height()
-                self.pipes.add(Pipe(x_top, y_top, objects_img['top_pipe'], 'top'))
-                self.pipes.add(Pipe(x_bottom, y_bottom, objects_img['bottom_pipe'], 'bottom'))
-                pipe_timer = random.randint(180, 250)
-            pipe_timer: int = pipe_timer - 1
 
             # Pygame config
-
             self.clock.tick(60)
             pygame.display.update()
+
