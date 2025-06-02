@@ -96,7 +96,7 @@ class Train():
 
     def eval_genomes(self, genomes, config) -> None:
         """
-        Menu and play again loop and logic
+        Evalúa una generación de genomas.
 
             Args:
                 None
@@ -104,30 +104,9 @@ class Train():
                 None
         """
 
-        while self.game_status:
-
-            # Window Config
-
-            self.window.start()
-
-            # Check Quit
-
-            self.check_quit()
-
-            # Set Background
-
-            self.window.window.fill((0,0,0))
-            self.window.blit(self.window.background, (0,0))
-            self.window.blit(objects_img['ground'], (0, 520))
-            self.window.blit(player_img[1], (100,250))
-            
-            # User Input
-            
-            self.train_loop(genomes, config)
-
-            self.reset_game()
-            
-            pygame.display.update()
+        self.game_status = True  # Reinicia el estado por si acaso
+        self.train_loop(genomes, config)
+        self.reset_game()
 
     def train_loop(self, genomes, config) -> None:
         """
@@ -142,8 +121,8 @@ class Train():
         # Initialize Objects
         nets=[]
         ge=[]
-        players_list = []  # MODIFICADO: Lista paralela a self.players
-        pipes_list = []    # MODIFICADO: Lista paralela a self.pipes
+        players_list = []  
+        pipes_list = []   
 
         for _, genome in genomes:
             genome.fitness = 0  # start with fitness level of 0
@@ -249,4 +228,6 @@ class Train():
             # Pygame config
             self.clock.tick(60)
             pygame.display.update()
+
+
 
