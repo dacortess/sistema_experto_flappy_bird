@@ -144,7 +144,7 @@ class Train():
         nets=[]
         ge=[]
 
-        for genome_id, genome in genomes:
+        for _, genome in genomes:
             genome.fitness = 0  # start with fitness level of 0
             net = neat.nn.FeedForwardNetwork.create(genome, config)
             nets.append(net)
@@ -168,10 +168,6 @@ class Train():
 
             self.window.blit(self.window.background, (0,0))
 
-            # Check User Input
-
-            user_input = pygame.key.get_pressed()
-
             # Draw Objects
             for player in self.players:
                 self.player.draw(self.window.window)
@@ -188,18 +184,36 @@ class Train():
             score_tect = font.render(f'Score: {self.score.score}', True, pygame.Color(255, 255, 255))
             self.window.blit(score_tect, (20, 20))
 
-            # Update Objects
+
+            pipe_ind = 0
+            if len(self.players) > 0:
+                if len(self.pipes) > 1 and self.players[0].rect.x > self.pipes[0].rect.x + self.pipes[0].PIPE_TOP.get_width():  # determine whether to use the first or second
+                    pipe_ind = 1
+            else:
+                run = False
+                break
+
+            for x, player in enumerate(self.players):  # give each bird a fitness of 0.1 for each frame it stays alive
+                ge[x].fitness += 0.1
+                player.move()
+
+                # send bird location, top pipe location and bottom pipe location and determine from network whether to jump or not
+                output = nets[self.players.index(player)].activate((player.rect.y, abs(player.rect.y - self.pipes[pipe_ind].rect.height), abs(player.rect.y - self.pipes[pipe_ind].rect.bottom)))
+
+                if output[0] > 0.5:  # we use a tanh activation function so result will be between -1 and 1. if over 0.5 jump
+                    player.jump()   
+                    
+             # Update Objects
             for player in self.players:
                 if self.player.sprite.alive:
                     self.pipes.update(self.score, ge=ge)
                     self.ground.update()
-                self.player.update(user_input)
 
             # Collisions
             for i, player in enumerate(self.players):
                 collision_pipes = pygame.sprite.spritecollide(self.player.sprites()[0], self.pipes, False)
                 collision_ground = pygame.sprite.spritecollide(self.player.sprites()[0], self.ground, False)
-                if collision_pipes or collision_ground:
+                if collision_pipes or collision_ground or player.rect.y < 0:
                     if collision_pipes:
                         if self.hit_sound:
                             sfx['hit'].play()
@@ -209,17 +223,15 @@ class Train():
                         if self.die_sound:
                             sfx['die'].play()
                             self.die_sound = False
+                    if player.rect.y < 0:
+                        if self.die_sound:
+                            sfx['die'].play()
+                            self.die_sound = False
                     ge[i].fitness -= 1
                     self.players.pop(i)
                     nets.pop(i)
                     ge.pop(i)
                                                        
-                # Game Restart
-
-                if user_input[pygame.K_r]:
-                    self.score.score = 0
-                    self.game_status = False
-                    break
 
             # Spawn Pipes
 
